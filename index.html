@@ -2830,6 +2830,2138 @@ document.body.addEventListener('click',()=>{
 },{once:true});
 
 /* ===== THE END ===== */
+/* ============================================================
+   🐉 ĐỢT 1 — NHÂN VẬT + ANIMATION NÂNG CAO (v3.0)
+   Phần 1/8: Bảng màu + Utility + Hàm vẽ đầu chibi nâng cao
+   ============================================================ */
+
+/* --- Bảng màu chuẩn --- */
+const CHIBI_COLORS = {
+  skinLight:'#ffeedd', skinMid:'#f5d5b0', skinDark:'#d0a880',
+  eyeWhite:'#ffffff', eyeBlack:'#1a1a2e',
+  blushHard:'rgba(255,90,90,0.7)',
+  mouthLine:'#c05050'
+};
+
+/* --- Utility: làm tối / sáng màu hex --- */
+function chibiDarken(hex,pct){
+  pct=pct||0.3;
+  if(!hex||hex==='transparent')return hex;
+  hex=hex.replace('#','');
+  if(hex.length===3)hex=hex.split('').map(function(c){return c+c}).join('');
+  const r=Math.max(0,Math.floor(parseInt(hex.substring(0,2),16)*(1-pct)));
+  const g=Math.max(0,Math.floor(parseInt(hex.substring(2,4),16)*(1-pct)));
+  const b=Math.max(0,Math.floor(parseInt(hex.substring(4,6),16)*(1-pct)));
+  return '#'+r.toString(16).padStart(2,'0')+g.toString(16).padStart(2,'0')+b.toString(16).padStart(2,'0');
+}
+function chibiLighten(hex,pct){
+  pct=pct||0.3;
+  if(!hex||hex==='transparent')return hex;
+  hex=hex.replace('#','');
+  if(hex.length===3)hex=hex.split('').map(function(c){return c+c}).join('');
+  const r=Math.min(255,Math.floor(parseInt(hex.substring(0,2),16)+(255-parseInt(hex.substring(0,2),16))*pct));
+  const g=Math.min(255,Math.floor(parseInt(hex.substring(2,4),16)+(255-parseInt(hex.substring(2,4),16))*pct));
+  const b=Math.min(255,Math.floor(parseInt(hex.substring(4,6),16)+(255-parseInt(hex.substring(4,6),16))*pct));
+  return '#'+r.toString(16).padStart(2,'0')+g.toString(16).padStart(2,'0')+b.toString(16).padStart(2,'0');
+}
+
+/* --- Vẽ 1 mắt 3 lớp (tròng trắng + tròng màu + đồng tử + 2 điểm sáng + lông mi) --- */
+function drawChibiEyeV2(c,cx,cy,w,h,style,emotion,blink,facing){
+  if(h<=0.5)return;
+  const eyeColor=(style&&(style.indexOf('demon')>=0||style.indexOf('ghost')>=0||style.indexOf('akatsuki')>=0))?'#ff2020':CHIBI_COLORS.eyeBlack;
+  const isRight=cx>0;
+  const pupilOffsetX=facing>0?w*0.15:-w*0.15;
+
+  // Layer 1: Tròng trắng
+  c.fillStyle=CHIBI_COLORS.eyeWhite;
+  c.beginPath();c.ellipse(cx,cy,w,h,0,0,Math.PI*2);c.fill();
+
+  // Layer 2: Tròng màu
+  c.fillStyle=eyeColor;
+  c.beginPath();c.ellipse(cx+pupilOffsetX*0.3,cy,w*0.85,h*0.92,0,0,Math.PI*2);c.fill();
+
+  // Layer 3: Đồng tử (bỏ với demon)
+  if(!style||style.indexOf('demon')<0){
+    c.fillStyle='#000';
+    c.beginPath();c.ellipse(cx+pupilOffsetX*0.5,cy,w*0.4,h*0.5,0,0,Math.PI*2);c.fill();
+  }
+
+  // Điểm sáng lớn
+  c.fillStyle='rgba(255,255,255,0.95)';
+  c.beginPath();c.arc(cx-w*0.35,cy-h*0.35,w*0.28,0,Math.PI*2);c.fill();
+  // Điểm sáng nhỏ
+  c.fillStyle='rgba(255,255,255,0.6)';
+  c.beginPath();c.arc(cx+w*0.3,cy+h*0.3,w*0.15,0,Math.PI*2);c.fill();
+
+  // Viền mí trên đậm
+  c.strokeStyle='rgba(0,0,0,0.6)';c.lineWidth=w*0.15;
+  c.beginPath();c.ellipse(cx,cy,w,h,0,Math.PI*1.05,Math.PI*1.95);c.stroke();
+
+  // Lông mi
+  c.strokeStyle='#0a0a0a';c.lineWidth=w*0.18;c.lineCap='round';
+  const lashSide=isRight?1:-1;
+  c.beginPath();
+  c.moveTo(cx+lashSide*w*0.9,cy-h*0.5);
+  c.lineTo(cx+lashSide*w*1.2,cy-h*0.9);
+  c.stroke();
+}
+
+/* --- Vẽ đầu chibi nâng cao (blink + emotion + style riêng) --- */
+function drawChibiHeadV2(c,x,y,r,style,hairColor,skin,opts){
+  opts=opts||{};
+  const blink=opts.blink!==undefined?opts.blink:1;
+  const emotion=opts.emotion||'normal';
+  const facing=opts.facing||1;
+  const hc=hairColor||'#0a0a0a';
+  const sk=skin||CHIBI_COLORS.skinMid;
+
+  // Bóng dưới cằm
+  c.fillStyle='rgba(0,0,0,0.12)';
+  c.beginPath();c.ellipse(x,y+r*0.85,r*0.7,r*0.2,0,0,Math.PI*2);c.fill();
+
+  // Đầu (gradient 3 chiều)
+  const headGrad=c.createRadialGradient(x-r*0.3,y-r*0.3,r*0.1,x,y,r*1.1);
+  headGrad.addColorStop(0,CHIBI_COLORS.skinLight);
+  headGrad.addColorStop(0.6,sk);
+  headGrad.addColorStop(1,CHIBI_COLORS.skinDark);
+  c.fillStyle=headGrad;
+  c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill();
+
+  // Tóc sau (lớp nền)
+  if(style!=='whiteTiger'&&style!=='obito'&&style!=='akatsuki'&&style!=='akatsuki_strong'){
+    const hairBack=c.createLinearGradient(x-r,y-r,x+r,y);
+    hairBack.addColorStop(0,chibiDarken(hc,0.3));
+    hairBack.addColorStop(1,hc);
+    c.fillStyle=hairBack;
+    c.beginPath();c.arc(x,y-r*0.15,r*1.08,Math.PI,0);c.fill();
+  }
+
+  // ===== Style đặc biệt: Obito (mặt nạ) =====
+  if(style==='obito'){
+    c.fillStyle='#ff8c42';
+    c.beginPath();c.arc(x,y,r*0.94,0,Math.PI*2);c.fill();
+    c.strokeStyle='#c06010';c.lineWidth=r*0.06;c.stroke();
+    // Lỗ mắt xoáy
+    c.fillStyle='#0a0a0a';
+    c.beginPath();c.arc(x-r*0.3,y-r*0.1,r*0.22,0,Math.PI*2);c.fill();
+    c.strokeStyle='#000';c.lineWidth=1.5;
+    c.beginPath();
+    for(let a=0;a<Math.PI*1.7;a+=0.2){
+      const rr=r*0.05+a*0.06;
+      const px=x-r*0.3+Math.cos(a)*rr;
+      const py=y-r*0.1+Math.sin(a)*rr;
+      if(a===0)c.moveTo(px,py);else c.lineTo(px,py);
+    }
+    c.stroke();
+    // Tóc đen trên đầu
+    c.fillStyle='#0a0a0a';
+    c.beginPath();c.arc(x,y-r*0.5,r*0.95,Math.PI,0);c.fill();
+    for(let i=0;i<5;i++){
+      const a=Math.PI+0.35+i*0.5;
+      c.beginPath();c.arc(x+Math.cos(a)*r*0.85,y-r*0.45+Math.sin(a)*r*0.85,r*0.18,0,Math.PI*2);c.fill();
+    }
+    return;
+  }
+
+  // Tóc mái (lớp trên)
+  if(style!=='whiteTiger'&&style!=='akatsuki'&&style!=='akatsuki_strong'){
+    const hairTop=c.createLinearGradient(x,y-r*1.1,x,y-r*0.2);
+    hairTop.addColorStop(0,chibiLighten(hc,0.25));
+    hairTop.addColorStop(0.5,hc);
+    hairTop.addColorStop(1,chibiDarken(hc,0.2));
+    c.fillStyle=hairTop;
+    c.beginPath();
+    c.moveTo(x-r*0.98,y-r*0.25);
+    c.quadraticCurveTo(x-r*1.05,y-r*1.05,x,y-r*1.1);
+    c.quadraticCurveTo(x+r*1.05,y-r*1.05,x+r*0.98,y-r*0.25);
+    c.lineTo(x+r*0.75,y-r*0.5);
+    c.lineTo(x+r*0.55,y-r*0.15);
+    c.lineTo(x+r*0.35,y-r*0.6);
+    c.lineTo(x+r*0.05,y-r*0.2);
+    c.lineTo(x-r*0.2,y-r*0.65);
+    c.lineTo(x-r*0.5,y-r*0.2);
+    c.lineTo(x-r*0.7,y-r*0.55);
+    c.closePath();
+    c.fill();
+    // Highlight tóc
+    c.fillStyle='rgba(255,255,255,0.25)';
+    c.beginPath();c.ellipse(x-r*0.35,y-r*0.75,r*0.3,r*0.12,-0.3,0,Math.PI*2);c.fill();
+  }
+
+  // ===== Prince: vương miện vàng =====
+  if(style==='prince'){
+    const cy=y-r*1.05;
+    c.fillStyle='#ffd700';
+    c.beginPath();
+    c.moveTo(x-r*0.75,cy+r*0.15);c.lineTo(x-r*0.55,cy-r*0.35);c.lineTo(x-r*0.3,cy);
+    c.lineTo(x,cy-r*0.5);c.lineTo(x+r*0.3,cy);c.lineTo(x+r*0.55,cy-r*0.35);
+    c.lineTo(x+r*0.75,cy+r*0.15);c.closePath();c.fill();
+    c.fillStyle='#ff3d6e';
+    c.beginPath();c.arc(x,cy-r*0.1,r*0.1,0,Math.PI*2);c.fill();
+  }
+
+  // ===== Samurai: búi tóc + băng đô đỏ =====
+  if(style==='samurai'){
+    c.fillStyle=hc;
+    c.beginPath();c.arc(x,y-r*1.15,r*0.28,0,Math.PI*2);c.fill();
+    c.fillStyle='#8b1a1a';
+    c.beginPath();c.arc(x,y-r*1.15,r*0.16,0,Math.PI*2);c.fill();
+    c.fillRect(x-r*1.0,y-r*0.4,r*2.0,r*0.15);
+    c.fillStyle='#4a0a0a';
+    c.fillRect(x-r*1.0,y-r*0.35,r*2.0,r*0.05);
+  }
+
+  // ===== Akatsuki: băng đô đen đỏ =====
+  if(style==='akatsuki'||style==='akatsuki_strong'){
+    c.fillStyle='#0a0a0a';
+    c.beginPath();c.arc(x,y-r*0.15,r*1.05,Math.PI,0);c.fill();
+    c.fillStyle='#8b0000';
+    c.fillRect(x-r*1.0,y-r*0.35,r*2.0,r*0.15);
+    c.fillStyle='#000';
+    c.fillRect(x-r*0.1,y-r*0.4,r*0.2,r*0.25);
+  }
+
+  // ===== Kenra: tóc trắng bồng bềnh =====
+  if(style==='kenra'){
+    c.fillStyle='rgba(255,255,255,0.4)';
+    for(let i=0;i<6;i++){
+      const a=Math.PI+0.3+i*0.5;
+      c.beginPath();c.arc(x+Math.cos(a)*r*0.9,y-r*0.4+Math.sin(a)*r*0.9,r*0.2,0,Math.PI*2);c.fill();
+    }
+  }
+
+  // ===== White Tiger: đầu trọc + xăm nhỏ =====
+  if(style==='whiteTiger'){
+    c.fillStyle='#3a2010';
+    c.beginPath();c.arc(x,y-r*0.7,r*0.1,0,Math.PI*2);c.fill();
+  }
+
+  // ===== Mắt =====
+  const eyeY=y+r*0.05;
+  const eyeOffX=r*0.35;
+  const eyeW=r*0.22;
+  const eyeH=r*0.28*blink;
+  drawChibiEyeV2(c,x-eyeOffX,eyeY,eyeW,eyeH,style,emotion,blink,facing);
+  drawChibiEyeV2(c,x+eyeOffX,eyeY,eyeW,eyeH,style,emotion,blink,facing);
+
+  // ===== Lông mày (thay đổi theo emotion) =====
+  if(emotion!=='hurt'){
+    c.strokeStyle=chibiDarken(hc,0.2);
+    c.lineWidth=r*0.07;c.lineCap='round';
+    const browY=y-r*0.28;
+    const tilt=emotion==='angry'?r*0.12:emotion==='scream'?r*0.15:0;
+    c.beginPath();c.moveTo(x-eyeOffX-eyeW,browY+tilt);c.lineTo(x-eyeOffX+eyeW,browY-tilt*0.3);c.stroke();
+    c.beginPath();c.moveTo(x+eyeOffX+eyeW,browY+tilt);c.lineTo(x+eyeOffX-eyeW,browY-tilt*0.3);c.stroke();
+  }
+
+  // ===== Má hồng =====
+  const blushA=emotion==='angry'?0.7:0.5;
+  c.fillStyle=emotion==='angry'?CHIBI_COLORS.blushHard:'rgba(255,140,140,'+blushA+')';
+  c.beginPath();c.ellipse(x-r*0.55,y+r*0.35,r*0.18,r*0.1,0,0,Math.PI*2);c.fill();
+  c.beginPath();c.ellipse(x+r*0.55,y+r*0.35,r*0.18,r*0.1,0,0,Math.PI*2);c.fill();
+
+  // ===== Miệng (theo emotion) =====
+  c.strokeStyle=CHIBI_COLORS.mouthLine;
+  c.lineWidth=r*0.06;c.lineCap='round';
+  if(emotion==='scream'){
+    c.fillStyle='#5a1a1a';
+    c.beginPath();c.ellipse(x,y+r*0.5,r*0.18,r*0.22,0,0,Math.PI*2);c.fill();
+    c.fillStyle='#ff8080';
+    c.beginPath();c.ellipse(x,y+r*0.6,r*0.1,r*0.08,0,0,Math.PI*2);c.fill();
+  }else if(emotion==='angry'){
+    c.beginPath();c.moveTo(x-r*0.15,y+r*0.5);c.lineTo(x+r*0.15,y+r*0.45);c.stroke();
+  }else if(emotion==='hurt'){
+    c.beginPath();c.moveTo(x-r*0.15,y+r*0.5);c.quadraticCurveTo(x,y+r*0.38,x+r*0.15,y+r*0.5);c.stroke();
+  }else{
+    c.beginPath();c.moveTo(x-r*0.12,y+r*0.47);c.quadraticCurveTo(x,y+r*0.58,x+r*0.12,y+r*0.47);c.stroke();
+  }
+}
+
+console.log('✓ Đợt 1 - Phần 1/8: Head V2 sẵn sàng');
+/* ============================================================
+   Phần 2/8: Vẽ thân chibi nâng cao
+   - Chân có khớp (knee joint)
+   - Tay có khớp + co duỗi khi đánh
+   - Áo choàng bay phấp phới theo wind
+   - Style riêng cho từng nhân vật
+   ============================================================ */
+
+/* --- Vẽ 1 chân có khớp --- */
+function drawChibiLegV2(c,ox,oy,legW,legH,color,color2,phase,isLeft){
+  const kneeY=oy+legH*0.5;
+  const footY=oy+legH;
+  // Đùi (thigh)
+  c.fillStyle=color;
+  c.beginPath();
+  c.moveTo(ox-legW/2,oy);
+  c.lineTo(ox+legW/2,oy);
+  c.lineTo(ox+legW*0.4,kneeY);
+  c.lineTo(ox-legW*0.4,kneeY);
+  c.closePath();
+  c.fill();
+  // Bắp chân (calf)
+  const calfOffset=Math.sin(phase)*legW*0.3;
+  c.fillStyle=color2;
+  c.beginPath();
+  c.moveTo(ox-legW*0.4,kneeY);
+  c.lineTo(ox+legW*0.4,kneeY);
+  c.lineTo(ox+legW*0.3+calfOffset,footY);
+  c.lineTo(ox-legW*0.3+calfOffset,footY);
+  c.closePath();
+  c.fill();
+  // Bàn chân / dép
+  c.fillStyle='#0a0a0a';
+  c.beginPath();
+  c.ellipse(ox+calfOffset,footY+legW*0.15,legW*0.9,legW*0.35,0,0,Math.PI*2);
+  c.fill();
+  // Đường sáng (highlight)
+  c.strokeStyle='rgba(255,255,255,0.15)';
+  c.lineWidth=1;
+  c.beginPath();
+  c.moveTo(ox-legW*0.15,oy+2);
+  c.lineTo(ox-legW*0.1,kneeY);
+  c.lineTo(ox-legW*0.05+calfOffset,footY-2);
+  c.stroke();
+}
+
+/* --- Vẽ 1 tay có khớp + co duỗi --- */
+function drawChibiArmV2(c,ox,oy,armW,armH,color,angle,extend){
+  // extend: 0 = co bình thường, 1 = duỗi tối đa (khi đánh)
+  c.save();
+  c.translate(ox,oy);
+  c.rotate(angle);
+  const ext=extend||0;
+  const realH=armH*(0.6+ext*0.4);
+  // Cánh tay trên
+  c.fillStyle=color;
+  c.beginPath();
+  c.roundRect(-armW/2,0,armW,realH*0.55,armW*0.3);
+  c.fill();
+  // Cẳng tay
+  c.fillStyle=chibiDarken(color,0.15);
+  c.beginPath();
+  c.roundRect(-armW/2,realH*0.55,armW,realH*0.4,armW*0.3);
+  c.fill();
+  // Bàn tay
+  c.fillStyle=CHIBI_COLORS.skinMid;
+  c.beginPath();
+  c.arc(0,realH*0.95,armW*0.65,0,Math.PI*2);
+  c.fill();
+  // Ngón tay
+  c.strokeStyle=chibiDarken(CHIBI_COLORS.skinMid,0.2);
+  c.lineWidth=1;
+  c.beginPath();
+  c.moveTo(-armW*0.3,realH*1.15);
+  c.lineTo(armW*0.3,realH*1.15);
+  c.stroke();
+  c.restore();
+}
+
+/* --- Vẽ áo choàng bay --- */
+function drawCapeV2(c,cx,cy,topW,botW,height,color,windPhase,style){
+  const sway=Math.sin(windPhase)*botW*0.15;
+  const sway2=Math.cos(windPhase*1.3)*botW*0.1;
+  const g=c.createLinearGradient(cx,cy,cx,cy+height);
+  g.addColorStop(0,chibiLighten(color,0.15));
+  g.addColorStop(0.6,color);
+  g.addColorStop(1,chibiDarken(color,0.4));
+  c.fillStyle=g;
+  c.beginPath();
+  c.moveTo(cx-topW/2,cy);
+  c.quadraticCurveTo(cx-topW/2-sway*0.5,cy+height*0.5,cx-botW/2+sway,cy+height);
+  // Đuôi áo bay lượn
+  c.quadraticCurveTo(cx-botW*0.2,cy+height+height*0.08,cx+botW*0.1,cy+height);
+  c.quadraticCurveTo(cx+botW*0.4+sway2,cy+height*0.9,cx+botW/2+sway*0.5,cy+height);
+  c.quadraticCurveTo(cx+topW/2+sway*0.3,cy+height*0.5,cx+topW/2,cy);
+  c.closePath();
+  c.fill();
+  // Highlight nếp gấp
+  c.strokeStyle='rgba(255,255,255,0.12)';
+  c.lineWidth=2;
+  c.beginPath();
+  c.moveTo(cx-topW*0.2,cy+height*0.1);
+  c.quadraticCurveTo(cx-topW*0.3+sway*0.3,cy+height*0.6,cx-botW*0.3+sway,cy+height*0.95);
+  c.stroke();
+  c.beginPath();
+  c.moveTo(cx+topW*0.2,cy+height*0.1);
+  c.quadraticCurveTo(cx+topW*0.3+sway2*0.3,cy+height*0.6,cx+botW*0.3+sway2,cy+height*0.95);
+  c.stroke();
+}
+
+/* --- Vẽ thân chibi nâng cao --- */
+function drawChibiBodyV2(c,ox,oy,ch,seed){
+  seed=seed||0;
+  const t=(typeof performance!=='undefined'?performance.now():Date.now())/1000 + seed;
+  const bc=ch.color||'#1a1a2e';
+  const bc2=ch.color2||'#0a0a1a';
+  const skin=ch.skin||CHIBI_COLORS.skinMid;
+  const style=ch.style||'default';
+
+  // Nhịp thở idle
+  const breath=Math.sin(t*2)*1.5;
+  const runBob=Math.sin(t*8)*2;
+
+  // Bóng dưới chân
+  c.fillStyle='rgba(0,0,0,0.35)';
+  c.beginPath();
+  c.ellipse(ox,oy+breath+runBob+2,42,10,0,0,Math.PI*2);
+  c.fill();
+
+  // ===== CHÂN =====
+  const legW=12;
+  const legH=26;
+  const legPhase=t*8;
+  if(style==='samurai'){
+    // Samurai quần đen hakama rộng
+    c.fillStyle='#0a0a0a';
+    c.beginPath();
+    c.moveTo(ox-20,oy-30);
+    c.lineTo(ox+20,oy-30);
+    c.lineTo(ox+26,oy+4+breath+runBob);
+    c.lineTo(ox-26,oy+4+breath+runBob);
+    c.closePath();
+    c.fill();
+    // Áo giáp đỏ trên
+    const g=c.createLinearGradient(ox-24,oy-75,ox+24,oy-30);
+    g.addColorStop(0,bc);g.addColorStop(1,bc2);
+    c.fillStyle=g;
+    c.beginPath();
+    c.roundRect(ox-24,oy-75,48,50,10);
+    c.fill();
+    // Vạch ngang giáp
+    c.fillStyle='#3a0a0a';
+    for(let yy=oy-72;yy<oy-28;yy+=8){
+      c.fillRect(ox-22,yy,44,2);
+    }
+    // Đai lưng vàng
+    c.fillStyle='#ffd700';
+    c.fillRect(ox-24,oy-52,48,4);
+  } else if(style==='akatsuki'||style==='akatsuki_strong'){
+    // Quần đen
+    c.fillStyle='#0a0a0a';
+    c.fillRect(ox-16,oy-32,12,legH);
+    c.fillRect(ox+4,oy-32,12,legH);
+    // Áo choàng đen có mây đỏ
+    drawCapeV2(c,ox,oy-70,52,68,62,bc,t*1.5,style);
+    // Mây đỏ Akatsuki
+    c.fillStyle='#8b0000';
+    for(let i=0;i<3;i++){
+      const py=oy-60+i*18;
+      c.beginPath();
+      c.arc(ox-12+i*8,py,4,0,Math.PI*2);
+      c.arc(ox-6+i*8,py+2,4,0,Math.PI*2);
+      c.fill();
+    }
+    // Áo trong xám
+    c.fillStyle='rgba(80,80,100,0.7)';
+    c.beginPath();
+    c.roundRect(ox-18,oy-72,36,44,10);
+    c.fill();
+    // Cổ áo chữ V
+    c.fillStyle='#0a0a0a';
+    c.beginPath();
+    c.moveTo(ox-14,oy-72);
+    c.lineTo(ox,oy-55);
+    c.lineTo(ox+14,oy-72);
+    c.closePath();
+    c.fill();
+  } else if(style==='prince'){
+    // Quần vàng
+    c.fillStyle='#d4a04a';
+    c.fillRect(ox-16,oy-32,12,legH);
+    c.fillRect(ox+4,oy-32,12,legH);
+    // Áo vàng lấp lánh
+    const g=c.createLinearGradient(ox-22,oy-75,ox+22,oy-28);
+    g.addColorStop(0,'#ffd700');
+    g.addColorStop(0.5,bc);
+    g.addColorStop(1,bc2);
+    c.fillStyle=g;
+    c.beginPath();
+    c.roundRect(ox-22,oy-75,44,50,10);
+    c.fill();
+    // Trang sức vàng trên áo
+    c.fillStyle='#ffd700';
+    for(let i=-15;i<=15;i+=10){
+      c.beginPath();
+      c.arc(ox+i,oy-45,2.5,0,Math.PI*2);
+      c.fill();
+    }
+    // Dây chuyền
+    c.strokeStyle='#ffd700';c.lineWidth=2;
+    c.beginPath();
+    c.arc(ox,oy-75,10,0.2,Math.PI-0.2);
+    c.stroke();
+    c.fillStyle='#ffd700';
+    c.beginPath();c.arc(ox,oy-72,3,0,Math.PI*2);c.fill();
+  } else if(style==='whiteTiger'){
+    // Quần đen
+    c.fillStyle='#0a0a0a';
+    c.fillRect(ox-16,oy-32,12,legH);
+    c.fillRect(ox+4,oy-32,12,legH);
+    // Dép lào nâu
+    c.fillStyle='#8a6010';
+    c.beginPath();c.ellipse(ox-10,oy+breath+runBob+2,9,3,0,0,Math.PI*2);c.fill();
+    c.beginPath();c.ellipse(ox+10,oy+breath+runBob+2,9,3,0,0,Math.PI*2);c.fill();
+    // Thân trần (không áo)
+    const g=c.createLinearGradient(ox-22,oy-75,ox+22,oy-28);
+    g.addColorStop(0,skin);
+    g.addColorStop(1,chibiDarken(skin,0.2));
+    c.fillStyle=g;
+    c.beginPath();
+    c.roundRect(ox-22,oy-75,44,50,10);
+    c.fill();
+    // Xăm hổ trên ngực
+    c.fillStyle='#3a2010';
+    c.beginPath();c.arc(ox,oy-52,12,0,Math.PI*2);c.fill();
+    // Mắt hổ
+    c.fillStyle='#ff8c42';
+    c.beginPath();c.arc(ox-5,oy-55,2.5,0,Math.PI*2);c.fill();
+    c.beginPath();c.arc(ox+5,oy-55,2.5,0,Math.PI*2);c.fill();
+    // Sọc hổ
+    c.strokeStyle='#ff8c42';c.lineWidth=1.5;
+    c.beginPath();
+    c.moveTo(ox-5,oy-58);c.lineTo(ox-7,oy-62);
+    c.moveTo(ox+5,oy-58);c.lineTo(ox+7,oy-62);
+    c.moveTo(ox-5,oy-48);c.lineTo(ox-8,oy-46);
+    c.moveTo(ox+5,oy-48);c.lineTo(ox+8,oy-46);
+    c.stroke();
+  } else if(style==='kenra'){
+    // Full trắng + chân trần
+    c.fillStyle='#f8f8ff';
+    c.fillRect(ox-16,oy-32,12,legH);
+    c.fillRect(ox+4,oy-32,12,legH);
+    // Bàn chân trần
+    c.fillStyle=skin;
+    c.beginPath();c.ellipse(ox-10,oy+breath+runBob+2,8,4,0,0,Math.PI*2);c.fill();
+    c.beginPath();c.ellipse(ox+10,oy+breath+runBob+2,8,4,0,0,Math.PI*2);c.fill();
+    // Áo trắng
+    const g=c.createLinearGradient(ox-22,oy-75,ox+22,oy-28);
+    g.addColorStop(0,'#ffffff');
+    g.addColorStop(1,'#d0d0e0');
+    c.fillStyle=g;
+    c.beginPath();
+    c.roundRect(ox-22,oy-75,44,50,10);
+    c.fill();
+    // Viền áo
+    c.strokeStyle='#c0c0d0';c.lineWidth=1;
+    c.strokeRect(ox-22,oy-75,44,50);
+  } else {
+    // Mặc định: áo choàng đen
+    c.fillStyle='#0a0a0a';
+    c.fillRect(ox-16,oy-32,12,legH);
+    c.fillRect(ox+4,oy-32,12,legH);
+    // Áo choàng bay
+    drawCapeV2(c,ox,oy-72,50,66,60,bc,t*1.2,style);
+    // Áo trong
+    const g=c.createLinearGradient(ox-22,oy-72,ox+22,oy-28);
+    g.addColorStop(0,bc);
+    g.addColorStop(1,bc2);
+    c.fillStyle=g;
+    c.beginPath();
+    c.roundRect(ox-22,oy-72,44,48,10);
+    c.fill();
+    // Cổ áo chữ V
+    c.fillStyle='rgba(0,0,0,0.5)';
+    c.beginPath();
+    c.moveTo(ox-14,oy-72);
+    c.lineTo(ox,oy-52);
+    c.lineTo(ox+14,oy-72);
+    c.closePath();
+    c.fill();
+  }
+
+  // ===== TAY =====
+  const armW=10;
+  const armH=32;
+  const armAngleL=-0.3+Math.sin(t*3)*0.1;
+  const armAngleR=0.3-Math.sin(t*3)*0.1;
+  const armColor=style==='whiteTiger'?skin:bc2;
+  // Tay trái
+  drawChibiArmV2(c,ox-24,oy-65,armW,armH,armColor,armAngleL-0.4,0);
+  // Tay phải
+  drawChibiArmV2(c,ox+24,oy-65,armW,armH,armColor,armAngleR+0.4,0);
+
+  // ===== ĐẦU =====
+  const headY=oy-108+breath*0.5+runBob*0.3;
+  const headR=32;
+  const blinkState=(Math.floor(t*1.5)%5===0&&(t*1.5)%1>0.92)?0.1:1;
+  drawChibiHeadV2(c,ox,headY,headR,style,ch.hair,skin,{
+    blink:blinkState,
+    emotion:'normal',
+    facing:1
+  });
+}
+
+/* --- Wrapper ghi đè hàm cũ --- */
+if(typeof drawChibiBody!=='undefined'){
+  window._origDrawChibiBody=drawChibiBody;
+}
+window.drawChibiBody=function(c,ox,oy,ch,seed){
+  drawChibiBodyV2(c,ox,oy,ch,seed);
+};
+if(typeof drawChibiFighter!=='undefined'){
+  window._origDrawChibiFighter=drawChibiFighter;
+}
+window.drawChibiFighter=function(c,x,y,scale,facing,ch,seed){
+  c.save();
+  c.translate(x,y);
+  c.scale(scale*facing,scale);
+  drawChibiBodyV2(c,0,0,ch,seed||0);
+  c.restore();
+};
+
+console.log('✓ Đợt 1 - Phần 2/8: Body V2 + ghi đè hàm cũ');
+/* ============================================================
+   Phần 3/8: Animation trạng thái cho Fighter (battle)
+   - Đánh: co duỗi tay, người nghiêng tới trước
+   - Nhảy: co chân lên
+   - Trúng đòn: rung + flash + emotion hurt
+   - Biểu cảm: bình thường / giận / đau / hét
+   ============================================================ */
+
+/* --- Context animation toàn cục --- */
+window._animCtx = {
+  attacking:0,     // 0-1 tiến trình đánh
+  jumping:false,
+  hurtT:0,         // >0 khi trúng đòn
+  emotion:'normal',
+  facing:1,
+  runPhase:0,
+  combo:0,
+  isPlayer:false
+};
+
+/* --- Vẽ chân với tư thế nhảy / chạy --- */
+function drawAnimatedLegs(c,ox,oy,style,color,color2,ctx){
+  const legW=12;
+  const legH=26;
+  const t=performance.now()/1000;
+
+  if(ctx.jumping){
+    // Nhảy: co chân lên
+    c.fillStyle=color;
+    c.beginPath();
+    c.roundRect(ox-18,oy-32,12,18,4);
+    c.fill();
+    c.beginPath();
+    c.roundRect(ox+6,oy-32,12,18,4);
+    c.fill();
+    // Bàn chân thu lại
+    c.fillStyle='#0a0a0a';
+    c.beginPath();c.ellipse(ox-12,oy-14,9,4,0,0,Math.PI*2);c.fill();
+    c.beginPath();c.ellipse(ox+12,oy-14,9,4,0,0,Math.PI*2);c.fill();
+    return;
+  }
+
+  // Chạy: chân co duỗi theo phase
+  const runAmp=ctx.runPhase*3;
+  const legPhase=Math.sin(t*10)*runAmp;
+  const legPhase2=Math.sin(t*10+Math.PI)*runAmp;
+
+  // Chân trái
+  drawAnimatedLeg(c,ox-10,oy-32,legW,legH,color,color2,legPhase);
+  // Chân phải
+  drawAnimatedLeg(c,ox+10,oy-32,legW,legH,color,color2,legPhase2);
+}
+
+function drawAnimatedLeg(c,lx,ly,w,h,color,color2,phase){
+  const kneeY=ly+h*0.5;
+  const footY=ly+h;
+  // Đùi
+  c.fillStyle=color;
+  c.beginPath();
+  c.moveTo(lx-w/2,ly);
+  c.lineTo(lx+w/2,ly);
+  c.lineTo(lx+w*0.4,kneeY);
+  c.lineTo(lx-w*0.4,kneeY);
+  c.closePath();
+  c.fill();
+  // Bắp chân
+  const co=phase*2;
+  c.fillStyle=color2;
+  c.beginPath();
+  c.moveTo(lx-w*0.4,kneeY);
+  c.lineTo(lx+w*0.4,kneeY);
+  c.lineTo(lx+w*0.3+co,footY);
+  c.lineTo(lx-w*0.3+co,footY);
+  c.closePath();
+  c.fill();
+  // Dép
+  c.fillStyle='#0a0a0a';
+  c.beginPath();
+  c.ellipse(lx+co,footY+2,w*0.9,w*0.35,0,0,Math.PI*2);
+  c.fill();
+}
+
+/* --- Vẽ tay đánh với co duỗi --- */
+function drawAttackingArm(c,ox,oy,armW,armH,color,side,ctx){
+  // side: -1 trái, 1 phải
+  const atk=ctx.attacking;
+  c.save();
+  c.translate(ox,oy);
+  // Góc tay: bình thường hơi xuống, khi đánh chĩa về trước
+  const baseAngle=side*0.5;
+  const atkAngle=atk>0?(side>0?-Math.PI/2*atk:-Math.PI/2*atk):0;
+  c.rotate(baseAngle+atkAngle);
+  // Chiều dài: khi đánh duỗi tối đa
+  const len=armH*(0.6+atk*0.55);
+  // Cánh tay trên
+  c.fillStyle=color;
+  c.beginPath();
+  c.roundRect(-armW/2,0,armW,len*0.55,armW*0.3);
+  c.fill();
+  // Cẳng tay
+  c.fillStyle=chibiDarken(color,0.15);
+  c.beginPath();
+  c.roundRect(-armW/2,len*0.55,armW,len*0.4,armW*0.3);
+  c.fill();
+  // Bàn tay
+  c.fillStyle=CHIBI_COLORS.skinMid;
+  c.beginPath();
+  c.arc(0,len*0.95,armW*0.65,0,Math.PI*2);
+  c.fill();
+  c.restore();
+}
+
+/* --- Ghi đè Fighter.draw để set context animation --- */
+if(typeof Fighter!=='undefined'){
+  const _origFighterDraw = Fighter.prototype.draw;
+  Fighter.prototype.draw = function(ctx){
+    // Cập nhật context trước khi vẽ
+    window._animCtx.attacking = this.attackT>0 ? Math.sin((1-this.attackT/0.35)*Math.PI) : 0;
+    window._animCtx.jumping = !this.onGround;
+    window._animCtx.hurtT = this.hurtT;
+    window._animCtx.facing = this.facing;
+    window._animCtx.runPhase = Math.min(1,Math.abs(Math.sin(this.runPhase*0.3)));
+    window._animCtx.isPlayer = this.isPlayer;
+    window._animCtx.combo = this.comboCount;
+
+    // Chọn emotion
+    if(this.hurtT>0.15) window._animCtx.emotion='hurt';
+    else if(this.attackT>0 && this.attackT/0.35<0.5) window._animCtx.emotion='scream';
+    else if(this.comboCount>=2) window._animCtx.emotion='angry';
+    else window._animCtx.emotion='normal';
+
+    // Gọi hàm vẽ gốc
+    _origFighterDraw.call(this,ctx);
+  };
+}
+
+/* --- Ghi đè drawCharBody để dùng animation --- */
+if(typeof drawCharBody!=='undefined'){
+  window._origDrawCharBody=drawCharBody;
+}
+window.drawCharBody=function(ctx,f){
+  const style=f.isBoss?('boss_'+f.bossStyle):f.style;
+  const c1=f.color, c2=f.color2;
+  const ctx2=window._animCtx;
+
+  // Bóng nhân vật
+  ctx.fillStyle='rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(0,2,34,8,0,0,Math.PI*2);
+  ctx.fill();
+
+  // Nhún người khi chạy vào sân
+  const ls=f.entranceDone?0:Math.sin(f.runPhase)*8;
+
+  // Chân (với animation)
+  ctx.save();
+  drawAnimatedLegs(ctx,0,-22,style,c1,c2,ctx2);
+  ctx.restore();
+
+  // Thân — nghiêng tới trước khi đánh
+  const leanX = ctx2.attacking*6;
+  const leanY = ctx2.jumping?-2:0;
+  const breathY = Math.sin(performance.now()/400)*0.8;
+  ctx.save();
+  ctx.translate(leanX, leanY+breathY);
+
+  // Áo/thân theo style
+  if(style==='default'||style==='obito'||style==='boss_normal'||style==='boss_small'){
+    const g=ctx.createLinearGradient(-24,-65,24,-20);
+    g.addColorStop(0,c1);g.addColorStop(1,c2);
+    ctx.fillStyle=g;
+    ctx.beginPath();
+    ctx.roundRect(-24,-65,48,48,10);
+    ctx.fill();
+    // Cổ áo chữ V
+    ctx.fillStyle='rgba(0,0,0,0.4)';
+    ctx.beginPath();
+    ctx.moveTo(-14,-65);ctx.lineTo(0,-48);ctx.lineTo(14,-65);ctx.closePath();
+    ctx.fill();
+  }
+  else if(style==='samurai'){
+    const g=ctx.createLinearGradient(-24,-70,24,-20);
+    g.addColorStop(0,c1);g.addColorStop(1,c2);
+    ctx.fillStyle=g;
+    ctx.beginPath();
+    ctx.roundRect(-24,-70,48,52,10);
+    ctx.fill();
+    // Vạch giáp
+    ctx.fillStyle='#3a0a0a';
+    for(let y=-68;y<-24;y+=8){ctx.fillRect(-22,y,44,2)}
+    // Đai lưng vàng
+    ctx.fillStyle='#ffd700';
+    ctx.fillRect(-24,-52,48,3);
+  }
+  else if(style==='whiteTiger'){
+    const g=ctx.createLinearGradient(-22,-65,22,-20);
+    g.addColorStop(0,f.skin||'#f0c8a0');
+    g.addColorStop(1,'#d0a880');
+    ctx.fillStyle=g;
+    ctx.beginPath();
+    ctx.roundRect(-20,-65,40,45,8);
+    ctx.fill();
+    // Xăm hổ
+    ctx.fillStyle='#3a2010';
+    ctx.beginPath();ctx.arc(0,-45,10,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#ff8c42';
+    ctx.beginPath();ctx.arc(-4,-48,2,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(4,-48,2,0,Math.PI*2);ctx.fill();
+  }
+  else if(style==='prince'){
+    const g=ctx.createLinearGradient(-22,-65,22,-20);
+    g.addColorStop(0,c1);g.addColorStop(1,c2);
+    ctx.fillStyle=g;
+    ctx.beginPath();
+    ctx.roundRect(-22,-65,44,45,10);
+    ctx.fill();
+    // Trang sức vàng
+    ctx.fillStyle='#ffd700';
+    for(let i=-15;i<=15;i+=10){
+      ctx.beginPath();ctx.arc(i,-45,2,0,Math.PI*2);ctx.fill();
+    }
+    ctx.fillRect(-22,-55,44,2);
+  }
+  else if(style==='kenra'){
+    const g=ctx.createLinearGradient(-22,-65,22,-20);
+    g.addColorStop(0,'#ffffff');g.addColorStop(1,'#d0d0e0');
+    ctx.fillStyle=g;
+    ctx.beginPath();
+    ctx.roundRect(-22,-65,44,45,10);
+    ctx.fill();
+    ctx.strokeStyle='#c0c0d0';ctx.lineWidth=1;
+    ctx.strokeRect(-22,-65,44,45);
+  }
+  else {
+    // Boss
+    const g=ctx.createLinearGradient(-22,-65,22,-20);
+    g.addColorStop(0,c1);g.addColorStop(1,c2);
+    ctx.fillStyle=g;
+    ctx.beginPath();
+    ctx.roundRect(-24,-70,48,50,10);
+    ctx.fill();
+  }
+
+  // Giáp player overlay
+  const ar=ARMORS[f.armorId]||ARMORS.none;
+  if(ar.shape!=='none'&&f.isPlayer){drawArmorOnBody(ctx,ar)}
+
+  ctx.restore();
+
+  // Tay (với animation đánh)
+  const armW=9;
+  const armH=30;
+  const armColor = (style==='whiteTiger')?(f.skin||'#f0c8a0'):c2;
+  // Tay trái
+  drawAttackingArm(ctx,-24,-65,armW,armH,armColor,-1,ctx2);
+  // Tay phải
+  drawAttackingArm(ctx,24,-65,armW,armH,armColor,1,ctx2);
+
+  // Đầu — có emotion
+  const headY=-108 + (ctx2.jumping?-3:0) + Math.sin(performance.now()/500)*0.5;
+  const headR=26;
+  const blinkState = (Math.floor(performance.now()/500)%6===0)?0.1:1;
+  drawChibiHeadV2(ctx,0,headY,headR,style,f.hairColor,f.skin,{
+    blink:blinkState,
+    emotion:ctx2.emotion,
+    facing:1
+  });
+
+  // Flash trắng khi trúng đòn
+  if(ctx2.hurtT>0.15){
+    ctx.save();
+    ctx.globalAlpha = ctx2.hurtT*0.6;
+    ctx.fillStyle='#ffffff';
+    ctx.beginPath();
+    ctx.arc(0,headY-30,55,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+};
+
+console.log('✓ Đợt 1 - Phần 3/8: Animation trạng thái sẵn sàng');
+/* ============================================================
+   Phần 4/8: Run cycle chi tiết + Kiếm có vệt quỹ đạo + Combo
+   - Chân chạy 8 frame mượt
+   - Kiếm vung có vệt sáng theo quỹ đạo
+   - Combo 3 hit hiển thị khác nhau
+   ============================================================ */
+
+/* --- Chân chạy chu kỳ 8 frame --- */
+function drawRunCycleLegs(c,ox,oy,color,color2,phase){
+  const frame=Math.floor(phase*8)%8;
+  const legW=11, legH=26;
+  // Bảng góc chân cho 8 frame
+  const angles=[
+    {l:-0.5,r:0.5},{l:-0.3,r:0.7},{l:0,r:0.8},{l:0.4,r:0.5},
+    {l:0.5,r:-0.5},{l:0.7,r:-0.3},{l:0.8,r:0},{l:0.5,r:0.4}
+  ][frame];
+  drawCycleLeg(c,ox-9,oy,legW,legH,color,color2,angles.l);
+  drawCycleLeg(c,ox+9,oy,legW,legH,color,color2,angles.r);
+}
+
+function drawCycleLeg(c,lx,ly,w,h,color,color2,angle){
+  const kneeX=lx+Math.sin(angle)*h*0.4;
+  const kneeY=ly+h*0.5;
+  const footX=kneeX+Math.sin(angle*1.5)*h*0.35;
+  const footY=ly+h-Math.abs(Math.sin(angle))*4;
+  // Đùi
+  c.fillStyle=color;
+  c.beginPath();
+  c.moveTo(lx-w/2,ly);
+  c.lineTo(lx+w/2,ly);
+  c.lineTo(kneeX+w*0.4,kneeY);
+  c.lineTo(kneeX-w*0.4,kneeY);
+  c.closePath();
+  c.fill();
+  // Bắp chân
+  c.fillStyle=color2;
+  c.beginPath();
+  c.moveTo(kneeX-w*0.4,kneeY);
+  c.lineTo(kneeX+w*0.4,kneeY);
+  c.lineTo(footX+w*0.3,footY);
+  c.lineTo(footX-w*0.3,footY);
+  c.closePath();
+  c.fill();
+  // Dép
+  c.fillStyle='#0a0a0a';
+  c.beginPath();
+  c.ellipse(footX,footY+2,w*0.9,w*0.35,0,0,Math.PI*2);
+  c.fill();
+}
+
+/* --- Vệt kiếm theo quỹ đạo --- */
+window._swordTrails=[];
+function spawnSwordTrail(x,y,facing,size,color){
+  window._swordTrails.push({
+    x:x, y:y, facing:facing,
+    size:size||60,
+    color:color||'#ffe066',
+    life:0.25, maxLife:0.25,
+    angle:(Math.random()-0.5)*0.4
+  });
+}
+
+function drawSwordTrails(c){
+  window._swordTrails=window._swordTrails.filter(function(tr){
+    tr.life-=1/60;
+    if(tr.life<=0)return false;
+    const a=tr.life/tr.maxLife;
+    c.save();
+    c.globalAlpha=a*0.85;
+    c.translate(tr.x,tr.y);
+    c.scale(tr.facing,1);
+    c.rotate(tr.angle);
+    // Vệt chính
+    c.shadowColor=tr.color;
+    c.shadowBlur=20;
+    c.strokeStyle=tr.color;
+    c.lineWidth=8*a;
+    c.lineCap='round';
+    c.beginPath();
+    c.arc(0,0,tr.size,-1.3,1.3);
+    c.stroke();
+    // Lõi trắng
+    c.strokeStyle='#fff';
+    c.lineWidth=3*a;
+    c.beginPath();
+    c.arc(0,0,tr.size,-1.25,1.25);
+    c.stroke();
+    // Tia lửa nhỏ
+    c.shadowBlur=0;
+    for(let i=0;i<6;i++){
+      const ang=-1.3+i*0.5;
+      const px=Math.cos(ang)*tr.size;
+      const py=Math.sin(ang)*tr.size;
+      c.fillStyle=tr.color;
+      c.beginPath();
+      c.arc(px,py,2*a,0,Math.PI*2);
+      c.fill();
+    }
+    c.restore();
+    return true;
+  });
+}
+
+/* --- Ghi đè drawSwordOnChar để có vệt khi vung --- */
+if(typeof drawSwordOnChar!=='undefined'){
+  window._origDrawSwordOnChar=drawSwordOnChar;
+}
+window.drawSwordOnChar=function(ctx,sw,x,y){
+  // Gọi hàm gốc để vẽ kiếm
+  if(window._origDrawSwordOnChar){
+    window._origDrawSwordOnChar.call(this,ctx,sw,x,y);
+  }
+  // Nếu đang attack, spawn trail
+  if(window._animCtx && window._animCtx.attacking>0.2){
+    if(Math.random()<0.6){
+      const cx=x+30, cy=y;
+      spawnSwordTrail(cx,cy,1,55+window._animCtx.attacking*30,
+        sw.glow&&sw.glow!=='transparent'?sw.glow:'#ffe066');
+    }
+  }
+};
+
+/* --- Ghi đè drawSkillEffects để thêm vệt kiếm --- */
+if(typeof drawSkillEffects!=='undefined'){
+  const _origDSE = drawSkillEffects;
+  window.drawSkillEffects = function(c){
+    _origDSE.call(this,c);
+    drawSwordTrails(c);
+  };
+}
+
+/* --- Combo text nâng cao (mỗi hit hiện chữ) --- */
+window._comboHits=[];
+function showComboHit(idx){
+  // idx: 1, 2, 3
+  const texts=['','⚔','⚔⚔','⚔⚔⚔'];
+  window._comboHits.push({
+    text:texts[idx]||'⚔',
+    life:0.6, maxLife:0.6,
+    yOffset:0
+  });
+}
+function drawComboHits(c){
+  window._comboHits=window._comboHits.filter(function(h){
+    h.life-=1/60;
+    h.yOffset-=1.5;
+    if(h.life<=0)return false;
+    const a=h.life/h.maxLife;
+    const scale=1+Math.sin(h.life*10)*0.15;
+    c.save();
+    c.globalAlpha=a;
+    c.translate(W*0.5, H*0.35+h.yOffset);
+    c.scale(scale,scale);
+    c.font='bold 48px Impact,sans-serif';
+    c.textAlign='center';
+    c.strokeStyle='#000';c.lineWidth=6;
+    c.strokeText(h.text,0,0);
+    const grd=c.createLinearGradient(-50,-20,50,20);
+    grd.addColorStop(0,'#ff3d6e');
+    grd.addColorStop(0.5,'#ffd700');
+    grd.addColorStop(1,'#ff8c42');
+    c.fillStyle=grd;
+    c.fillText(h.text,0,0);
+    c.restore();
+    return true;
+  });
+}
+
+/* --- Wrap Fighter.attack để spawn combo hit --- */
+if(typeof Fighter!=='undefined'){
+  const _origAttackV2 = Fighter.prototype.attack;
+  Fighter.prototype.attack=function(t){
+    const wasReady = this.attackCooldown<=0&&this.isAlive();
+    _origAttackV2.call(this,t);
+    if(wasReady&&this.isPlayer){
+      const comboIdx = Math.min(3, this.comboCount+1);
+      if(comboIdx>=2) showComboHit(comboIdx);
+    }
+  };
+}
+
+/* --- Thêm hiệu ứng vệt khi hạ địch (kill effect) --- */
+window._killEffects=[];
+function spawnKillEffect(x,y,color){
+  window._killEffects.push({
+    x:x, y:y, color:color||'#ffd700',
+    life:1, maxLife:1
+  });
+  // Thêm tia lửa bay ra
+  for(let i=0;i<20;i++){
+    const ang=Math.random()*Math.PI*2;
+    const spd=150+Math.random()*350;
+    if(typeof skillEffects!=='undefined'){
+      skillEffects.push({
+        type:'spark',
+        x:x,y:y-50,
+        vx:Math.cos(ang)*spd,
+        vy:Math.sin(ang)*spd,
+        life:0.8,maxLife:0.8,
+        color:color||'#ffd700',
+        size:3+Math.random()*4
+      });
+    }
+  }
+}
+function drawKillEffects(c){
+  window._killEffects=window._killEffects.filter(function(k){
+    k.life-=1/60;
+    if(k.life<=0)return false;
+    const a=k.life/k.maxLife;
+    const r=(1-a)*120;
+    c.save();
+    c.globalAlpha=a*0.8;
+    c.strokeStyle=k.color;
+    c.lineWidth=6*a;
+    c.shadowColor=k.color;
+    c.shadowBlur=20;
+    c.beginPath();
+    c.arc(k.x,k.y-50,r,0,Math.PI*2);
+    c.stroke();
+    c.strokeStyle='#fff';
+    c.lineWidth=3*a;
+    c.beginPath();
+    c.arc(k.x,k.y-50,r*0.7,0,Math.PI*2);
+    c.stroke();
+    c.restore();
+    return true;
+  });
+}
+
+/* --- Ghi đè draw tổng để vẽ thêm --- */
+if(typeof draw!=='undefined'){
+  const _origDrawV2 = draw;
+  window.draw = function(){
+    _origDrawV2.call(this);
+    drawComboHits(ctx);
+    drawKillEffects(ctx);
+  };
+}
+
+/* --- Wrap takeDamage để spawn kill effect --- */
+if(typeof Fighter!=='undefined'){
+  const _origTakeDamageV2 = Fighter.prototype.takeDamage;
+  Fighter.prototype.takeDamage=function(d,isCrit){
+    const wasAlive=this.isAlive();
+    _origTakeDamageV2.call(this,d,isCrit);
+    if(!this.isPlayer&&!this.isDummy&&wasAlive&&!this.isAlive()){
+      spawnKillEffect(this.x,this.y,this.isBoss?'#ff0040':'#ffd700');
+    }
+  };
+}
+
+console.log('✓ Đợt 1 - Phần 4/8: Run cycle + Sword trail + Combo sẵn sàng');
+/* ============================================================
+   Phần 5/8: Animation chết + Chạy vào sân + Idle chi tiết
+   - Chết: rung, gục xuống, tan thành hạt sáng, còn lại kiếm+áo
+   - Chạy vào sân: khói bụi, vệt tốc độ, tóc bay
+   - Idle: thở, liếc mắt, tay cử động nhẹ
+   ============================================================ */
+
+/* --- Hiệu ứng hạt tan biến khi chết --- */
+window._deathParticles=[];
+function spawnDeathParticles(x,y,color){
+  for(let i=0;i<30;i++){
+    const ang=Math.random()*Math.PI*2;
+    const spd=40+Math.random()*150;
+    window._deathParticles.push({
+      x:x+(Math.random()-0.5)*40,
+      y:y-Math.random()*90,
+      vx:Math.cos(ang)*spd,
+      vy:-40-Math.random()*80,
+      life:1.2,maxLife:1.2,
+      size:2+Math.random()*4,
+      color:color||'#ffe066',
+      wobble:Math.random()*Math.PI*2
+    });
+  }
+}
+function updateDeathParticles(dt){
+  window._deathParticles=window._deathParticles.filter(function(p){
+    p.life-=dt;
+    p.x+=p.vx*dt;
+    p.y+=p.vy*dt;
+    p.vy+=30*dt;
+    p.wobble+=dt*4;
+    p.x+=Math.sin(p.wobble)*0.5;
+    return p.life>0;
+  });
+}
+function drawDeathParticles(c){
+  window._deathParticles.forEach(function(p){
+    const a=p.life/p.maxLife;
+    c.save();
+    c.globalAlpha=a;
+    c.shadowColor=p.color;
+    c.shadowBlur=12;
+    c.fillStyle=p.color;
+    c.beginPath();
+    c.arc(p.x,p.y,p.size*a,0,Math.PI*2);
+    c.fill();
+    c.restore();
+  });
+}
+
+/* --- Khói bụi khi chạy vào sân / nhảy --- */
+window._dustParticles=[];
+function spawnDust(x,y,color){
+  for(let i=0;i<3;i++){
+    window._dustParticles.push({
+      x:x+(Math.random()-0.5)*15,
+      y:y,
+      vx:(Math.random()-0.5)*40-30,
+      vy:-10-Math.random()*30,
+      life:0.7,maxLife:0.7,
+      size:5+Math.random()*8,
+      color:color||'rgba(200,200,220,0.6)'
+    });
+  }
+}
+function updateDustParticles(dt){
+  window._dustParticles=window._dustParticles.filter(function(p){
+    p.life-=dt;
+    p.x+=p.vx*dt;
+    p.y+=p.vy*dt;
+    p.vy+=20*dt;
+    p.size+=30*dt;
+    return p.life>0;
+  });
+}
+function drawDustParticles(c){
+  window._dustParticles.forEach(function(p){
+    const a=p.life/p.maxLife;
+    c.save();
+    c.globalAlpha=a*0.6;
+    c.fillStyle=p.color;
+    c.beginPath();
+    c.arc(p.x,p.y,p.size,0,Math.PI*2);
+    c.fill();
+    c.restore();
+  });
+}
+
+/* --- Ghi đè Fighter.draw — thêm hiệu ứng trước khi vẽ --- */
+if(typeof Fighter!=='undefined'){
+  const _origDrawV3 = Fighter.prototype.draw;
+  Fighter.prototype.draw=function(ctx){
+    // Spawn khói khi chạy vào sân
+    if(!this.entranceDone && Math.random()<0.6){
+      spawnDust(this.x,this.y,'rgba(200,200,220,0.5)');
+    }
+    // Spawn khói khi hạ cánh (từ trên xuống)
+    if(!this._wasOnGround && this.onGround && this._lastVy>300){
+      for(let i=0;i<6;i++) spawnDust(this.x,this.y,'rgba(180,180,200,0.6)');
+    }
+    this._wasOnGround=this.onGround;
+    this._lastVy=this.vy||0;
+
+    // Spawn hạt khi chết (chỉ 1 lần)
+    if(this.dead && !this._deathParticlesSpawned){
+      this._deathParticlesSpawned=true;
+      const col = this.isBoss?'#ff0040':(this.color||'#ffe066');
+      spawnDeathParticles(this.x,this.y,col);
+      spawnDeathParticles(this.x,this.y,'#ffd700');
+    }
+
+    // Gọi draw gốc
+    _origDrawV3.call(this,ctx);
+  };
+}
+
+/* --- Ghi đè draw tổng để vẽ particle layers --- */
+if(typeof draw!=='undefined'){
+  const _origDrawV3 = window.draw;
+  window.draw=function(){
+    _origDrawV3.call(this);
+    drawDustParticles(ctx);
+    drawDeathParticles(ctx);
+  };
+}
+
+/* --- Update particles trong updateBattle --- */
+if(typeof updateBattle!=='undefined'){
+  const _origUpdateBattleV3 = updateBattle;
+  window.updateBattle=function(dt){
+    updateDeathParticles(dt);
+    updateDustParticles(dt);
+    _origUpdateBattleV3.call(this,dt);
+  };
+}
+
+/* --- Vệt tốc độ khi di chuyển nhanh --- */
+window._speedTrails=[];
+function spawnSpeedTrail(x,y,dir,color){
+  window._speedTrails.push({
+    x:x, y:y, dir:dir,
+    life:0.3,maxLife:0.3,
+    color:color||'rgba(100,180,255,0.5)'
+  });
+}
+function updateSpeedTrails(dt){
+  window._speedTrails=window._speedTrails.filter(function(t){
+    t.life-=dt;
+    t.x-=t.dir*200*dt;
+    return t.life>0;
+  });
+}
+function drawSpeedTrails(c){
+  window._speedTrails.forEach(function(t){
+    const a=t.life/t.maxLife;
+    c.save();
+    c.globalAlpha=a*0.6;
+    c.strokeStyle=t.color;
+    c.lineWidth=2;
+    c.lineCap='round';
+    c.beginPath();
+    c.moveTo(t.x,t.y);
+    c.lineTo(t.x-t.dir*30,t.y);
+    c.stroke();
+    c.beginPath();
+    c.moveTo(t.x,t.y+8);
+    c.lineTo(t.x-t.dir*20,t.y+8);
+    c.stroke();
+    c.restore();
+  });
+}
+
+/* --- Ghi đè playerUpdate để spawn speed trail khi dash --- */
+if(typeof Fighter!=='undefined'){
+  const _origPlayerUpdateV3 = Fighter.prototype.playerUpdate;
+  Fighter.prototype.playerUpdate=function(dt){
+    const wasDashing = this.dashT>0;
+    _origPlayerUpdateV3.call(this,dt);
+    if(this.dashT>0 && Math.random()<0.8){
+      spawnSpeedTrail(this.x,this.y-60,this.facing,'rgba(255,215,0,0.7)');
+      spawnSpeedTrail(this.x,this.y-40,this.facing,'rgba(100,180,255,0.5)');
+    }
+  };
+  const _origAiUpdateV3 = Fighter.prototype.aiUpdate;
+  Fighter.prototype.aiUpdate=function(dt){
+    const wasDashing = this.dashT>0;
+    _origAiUpdateV3.call(this,dt);
+    if(this.dashT>0 && Math.random()<0.7){
+      spawnSpeedTrail(this.x,this.y-60,this.facing,'rgba(255,100,100,0.6)');
+    }
+  };
+}
+
+/* --- Thêm vào updateBattle: update speed trails --- */
+if(typeof updateBattle!=='undefined'){
+  const _prevUpdateBattleV3 = window.updateBattle;
+  window.updateBattle=function(dt){
+    updateSpeedTrails(dt);
+    _prevUpdateBattleV3.call(this,dt);
+  };
+}
+
+/* --- Thêm vào draw: vẽ speed trails --- */
+if(typeof draw!=='undefined'){
+  const _prevDrawV3 = window.draw;
+  window.draw=function(){
+    _prevDrawV3.call(this);
+    drawSpeedTrails(ctx);
+  };
+}
+
+/* --- Cải thiện hiệu ứng chết: tan biến từ từ (fade) --- */
+if(typeof Fighter!=='undefined'){
+  const _origFighterDrawFinal = Fighter.prototype.draw;
+  Fighter.prototype.draw=function(ctx){
+    // Nếu chết: điều chỉnh alpha theo deathT
+    if(this.dead){
+      // Không vẽ nếu đã tan hết
+      if(this.deathT>2.5)return;
+      // Alpha giảm dần
+      ctx.save();
+      const alpha = Math.max(0, 1 - this.deathT/2.5);
+      ctx.globalAlpha = alpha;
+      _origFighterDrawFinal.call(this,ctx);
+      ctx.restore();
+      return;
+    }
+    _origFighterDrawFinal.call(this,ctx);
+  };
+}
+
+console.log('✓ Đợt 1 - Phần 5/8: Death + Dust + Speed trails sẵn sàng');
+/* ============================================================
+   Phần 6/8: Animation kỹ năng nâng cao
+   - Vệt kiếm xoay khi cast skill
+   - Tay nhân vật giơ lên khi cast
+   - Kiếm chuyển màu theo skill
+   - Nhân vật có pose riêng khi cast
+   ============================================================ */
+
+/* --- Trạng thái cast skill --- */
+window._castCtx = {
+  casting:0,        // 0-1 tiến trình cast
+  castColor:'#ffe066',
+  castType:'fire'
+};
+
+/* --- Pose cast: 2 tay giơ lên + kiếm chĩa lên trời --- */
+function drawCastPose(c,ox,oy,armW,armH,color,skin,progress){
+  // 2 tay giơ cao
+  const angle=-Math.PI/2*0.7*progress;
+  // Tay trái
+  c.save();
+  c.translate(ox-20,oy-70);
+  c.rotate(-0.4+angle);
+  c.fillStyle=color;
+  c.beginPath();
+  c.roundRect(-armW/2,0,armW,armH,armW*0.3);
+  c.fill();
+  c.fillStyle=skin;
+  c.beginPath();
+  c.arc(0,armH,armW*0.7,0,Math.PI*2);
+  c.fill();
+  c.restore();
+  // Tay phải
+  c.save();
+  c.translate(ox+20,oy-70);
+  c.rotate(0.4-angle);
+  c.fillStyle=color;
+  c.beginPath();
+  c.roundRect(-armW/2,0,armW,armH,armW*0.3);
+  c.fill();
+  c.fillStyle=skin;
+  c.beginPath();
+  c.arc(0,armH,armW*0.7,0,Math.PI*2);
+  c.fill();
+  c.restore();
+}
+
+/* --- Vòng sáng dưới chân khi cast --- */
+function drawCastCircle(c,ox,oy,progress,color){
+  if(progress<=0)return;
+  const r=30+progress*50;
+  const a=progress*0.7;
+  c.save();
+  c.globalAlpha=a;
+  c.strokeStyle=color;
+  c.lineWidth=4;
+  c.shadowColor=color;
+  c.shadowBlur=25;
+  // Vòng ngoài
+  c.beginPath();
+  c.ellipse(ox,oy+2,r,r*0.35,0,0,Math.PI*2);
+  c.stroke();
+  // Vòng trong
+  c.strokeStyle='#fff';
+  c.lineWidth=2;
+  c.beginPath();
+  c.ellipse(ox,oy+2,r*0.65,r*0.65*0.35,0,0,Math.PI*2);
+  c.stroke();
+  // Hán tự / biểu tượng bay lên
+  c.restore();
+}
+
+/* --- Ghi đè drawCharBody lần nữa để thêm pose cast --- */
+if(typeof window.drawCharBody!=='undefined'){
+  const _origDrawCharBodyCast = window.drawCharBody;
+  window.drawCharBody=function(ctx,f){
+    const cast=window._castCtx.casting;
+    if(cast>0.1){
+      // Đang cast: dùng pose riêng
+      const style=f.isBoss?('boss_'+f.bossStyle):f.style;
+      const c1=f.color, c2=f.color2;
+      // Bóng
+      ctx.fillStyle='rgba(0,0,0,0.3)';
+      ctx.beginPath();
+      ctx.ellipse(0,2,34,8,0,0,Math.PI*2);
+      ctx.fill();
+      // Vòng sáng dưới chân
+      drawCastCircle(ctx,0,0,cast,window._castCtx.castColor);
+      // Chân đứng thẳng
+      ctx.fillStyle=c2;
+      ctx.fillRect(-14,-22,10,22);
+      ctx.fillRect(4,-22,10,22);
+      ctx.fillStyle='#000';
+      ctx.beginPath();ctx.ellipse(-9,0,7,3,0,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.ellipse(9,0,7,3,0,0,Math.PI*2);ctx.fill();
+      // Thân (giữ nguyên theo style)
+      const g=ctx.createLinearGradient(-22,-65,22,-20);
+      g.addColorStop(0,c1);g.addColorStop(1,c2);
+      ctx.fillStyle=g;
+      ctx.beginPath();
+      ctx.roundRect(-24,-65,48,48,10);
+      ctx.fill();
+      // Tay giơ lên
+      const armW=10, armH=32;
+      const armColor=(style==='whiteTiger')?(f.skin||'#f0c8a0'):c2;
+      drawCastPose(ctx,0,-10,armW,armH,armColor,f.skin||CHIBI_COLORS.skinMid,cast);
+      // Đầu — biểu cảm hét
+      const headY=-108;
+      drawChibiHeadV2(ctx,0,headY,26,style,f.hairColor,f.skin,{
+        blink:1,
+        emotion:'scream',
+        facing:1
+      });
+      // Hào quang quanh người
+      ctx.save();
+      ctx.globalAlpha=cast*0.5;
+      ctx.strokeStyle=window._castCtx.castColor;
+      ctx.lineWidth=3;
+      ctx.shadowColor=window._castCtx.castColor;
+      ctx.shadowBlur=30;
+      ctx.beginPath();
+      ctx.arc(0,-60,60+cast*20,0,Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
+    // Không cast: dùng hàm gốc
+    _origDrawCharBodyCast.call(this,ctx,f);
+  };
+}
+
+/* --- Wrap Fighter.useSkill để set cast state --- */
+if(typeof Fighter!=='undefined'){
+  const _origUseSkillCast = Fighter.prototype.useSkill;
+  Fighter.prototype.useSkill=function(i,tt){
+    const wasReady = this.skills[i]<=0 && this.isAlive();
+    if(wasReady){
+      const sd=this.skillData[i];
+      // Set cast state
+      window._castCtx.casting = 1;
+      window._castCtx.castType = sd.effect||'fire';
+      const colorMap={
+        fire:'#ff8c42', lightning:'#4ad8ff', explosion:'#ff3d6e',
+        invisible:'#a0a0ff', knife:'#c0c8d8', coin:'#ffd700',
+        haki:'#8b3dff', barrier:'#c0e8ff', flame:'#ff6a00',
+        meteor:'#ff6a00', amaterasu:'#ff0000', gravity:'#8b3dff',
+        pull:'#8b3dff'
+      };
+      window._castCtx.castColor = colorMap[sd.effect]||'#ffe066';
+      // Sau 0.4s tắt cast state
+      setTimeout(function(){ window._castCtx.casting=0; }, 400);
+    }
+    _origUseSkillCast.call(this,i,tt);
+  };
+}
+
+/* --- Nếu có drawSkillEffects gốc, wrap để có vệt khi cast --- */
+if(typeof window.drawSkillEffects!=='undefined'){
+  const _origDSE2 = window.drawSkillEffects;
+  window.drawSkillEffects=function(c){
+    _origDSE2.call(this,c);
+    // Vệt xoay quanh nhân vật khi cast
+    if(window._castCtx.casting>0.3 && game.players && game.players.length){
+      const p=game.players.find(x=>x.isLeader&&x.isAlive())||game.players.find(x=>x.isAlive());
+      if(p){
+        const t=performance.now()/1000;
+        const cx=p.x, cy=p.y-60;
+        const rad=40+Math.sin(t*10)*8;
+        c.save();
+        c.globalAlpha=window._castCtx.casting*0.8;
+        c.strokeStyle=window._castCtx.castColor;
+        c.lineWidth=4;
+        c.shadowColor=window._castCtx.castColor;
+        c.shadowBlur=20;
+        // Vẽ 2 cung xoay
+        c.beginPath();
+        c.arc(cx,cy,rad,t*4,t*4+Math.PI*0.7);
+        c.stroke();
+        c.beginPath();
+        c.arc(cx,cy,rad,t*4+Math.PI,t*4+Math.PI+Math.PI*0.7);
+        c.stroke();
+        c.restore();
+      }
+    }
+  };
+}
+
+/* --- Thêm hiệu ứng "niệm chú" — chữ Hán tự bay lên --- */
+window._runeTexts=[];
+function spawnRuneText(x,y,color){
+  const runes=['火','水','雷','風','光','闇','龍','虎','王'];
+  window._runeTexts.push({
+    x:x+(Math.random()-0.5)*40,
+    y:y-30,
+    text:runes[Math.floor(Math.random()*runes.length)],
+    life:0.9,maxLife:0.9,
+    vy:-60,
+    color:color
+  });
+}
+function updateRuneTexts(dt){
+  window._runeTexts=window._runeTexts.filter(function(r){
+    r.life-=dt;
+    r.y+=r.vy*dt;
+    r.vy-=20*dt;
+    return r.life>0;
+  });
+}
+function drawRuneTexts(c){
+  window._runeTexts.forEach(function(r){
+    const a=r.life/r.maxLife;
+    c.save();
+    c.globalAlpha=a;
+    c.font='bold 24px serif';
+    c.textAlign='center';
+    c.strokeStyle='#000';c.lineWidth=3;
+    c.strokeText(r.text,r.x,r.y);
+    c.fillStyle=r.color;
+    c.shadowColor=r.color;
+    c.shadowBlur=15;
+    c.fillText(r.text,r.x,r.y);
+    c.restore();
+  });
+}
+
+/* --- Ghi đè Fighter.useSkill để spawn rune --- */
+if(typeof Fighter!=='undefined'){
+  const _prevUseSkillRune = Fighter.prototype.useSkill;
+  Fighter.prototype.useSkill=function(i,tt){
+    if(this.skills[i]<=0 && this.isAlive()){
+      const col=window._castCtx.castColor||'#ffe066';
+      for(let k=0;k<4;k++){
+        setTimeout(function(){ spawnRuneText(this.x,this.y,col); }.bind(this), k*80);
+      }
+    }
+    _prevUseSkillRune.call(this,i,tt);
+  };
+}
+
+/* --- Update + draw --- */
+if(typeof window.updateBattle!=='undefined'){
+  const _prevUBRune = window.updateBattle;
+  window.updateBattle=function(dt){
+    updateRuneTexts(dt);
+    _prevUBRune.call(this,dt);
+  };
+}
+if(typeof window.draw!=='undefined'){
+  const _prevDrawRune = window.draw;
+  window.draw=function(){
+    _prevDrawRune.call(this);
+    drawRuneTexts(ctx);
+  };
+}
+
+/* --- Hiệu ứng aura liên tục khi HP thấp --- */
+window._auraPhase=0;
+if(typeof window.draw!=='undefined'){
+  const _prevDrawAura = window.draw;
+  window.draw=function(){
+    _prevDrawAura.call(this);
+    // Aura cho player khi HP thấp
+    if(game.players){
+      game.players.forEach(function(p){
+        if(p.isAlive() && p.hp/p.maxHp<0.3){
+          const t=performance.now()/1000;
+          ctx.save();
+          ctx.globalAlpha=0.3+Math.sin(t*8)*0.2;
+          ctx.strokeStyle='#ff0040';
+          ctx.lineWidth=3;
+          ctx.shadowColor='#ff0040';
+          ctx.shadowBlur=25;
+          ctx.beginPath();
+          ctx.arc(p.x,p.y-60,50+Math.sin(t*5)*5,0,Math.PI*2);
+          ctx.stroke();
+          ctx.restore();
+        }
+      });
+    }
+    // Aura cho enemy boss
+    if(game.enemies){
+      game.enemies.forEach(function(e){
+        if(e.isBoss && e.isAlive()){
+          const t=performance.now()/1000;
+          ctx.save();
+          ctx.globalAlpha=0.4+Math.sin(t*4)*0.2;
+          ctx.strokeStyle='#ff0040';
+          ctx.lineWidth=4;
+          ctx.shadowColor='#ff0040';
+          ctx.shadowBlur=30;
+          ctx.beginPath();
+          ctx.arc(e.x,e.y-70,70+Math.sin(t*3)*8,0,Math.PI*2);
+          ctx.stroke();
+          ctx.strokeStyle='#8b0000';
+          ctx.lineWidth=2;
+          ctx.beginPath();
+          ctx.arc(e.x,e.y-70,60+Math.cos(t*3)*6,0,Math.PI*2);
+          ctx.stroke();
+          ctx.restore();
+        }
+      });
+    }
+  };
+}
+
+console.log('✓ Đợt 1 - Phần 6/8: Cast pose + Rune + Aura sẵn sàng');
+/* ============================================================
+   Phần 7/8: Boss Animation + Cinematic
+   - Boss xuất hiện: màn hình tối, sét đánh, hào quang
+   - Mắt boss phát sáng, có tia lửa bay ra
+   - Boss gầm gừ (rung người, khói đen)
+   - Boss đánh mạnh hơn với hiệu ứng riêng
+   ============================================================ */
+
+/* --- Cinematic khi boss xuất hiện --- */
+window._bossCinematic = {
+  active:false,
+  t:0,
+  duration:2.0,
+  boss:null
+};
+
+function startBossCinematic(boss){
+  window._bossCinematic.active=true;
+  window._bossCinematic.t=0;
+  window._bossCinematic.boss=boss;
+  // Flash đỏ toàn màn hình
+  if(typeof screenFlash!=='undefined'){
+    screenFlash=1;
+    flashColor='#ff0040';
+  }
+  // Sét đánh quanh boss
+  for(let i=0;i<8;i++){
+    setTimeout(function(){
+      const ang=Math.random()*Math.PI*2;
+      const tx=boss.x+Math.cos(ang)*80;
+      if(typeof skillEffects!=='undefined'){
+        skillEffects.push({
+          type:'lightning',
+          points:[{x:tx,y:0},{x:tx,y:boss.y-50}],
+          branches:[],
+          life:0.3,maxLife:0.3
+        });
+      }
+    },i*100);
+  }
+  // Âm thanh gầm
+  if(typeof playTone==='function'){
+    playTone(80,0.5,'sawtooth',0.3);
+    setTimeout(function(){playTone(60,0.4,'sawtooth',0.25);},300);
+  }
+}
+
+function updateBossCinematic(dt){
+  if(!window._bossCinematic.active)return;
+  window._bossCinematic.t+=dt;
+  if(window._bossCinematic.t>=window._bossCinematic.duration){
+    window._bossCinematic.active=false;
+  }
+}
+
+function drawBossCinematic(c){
+  if(!window._bossCinematic.active)return;
+  const t=window._bossCinematic.t/window._bossCinematic.duration;
+  // Thanh đen trên/dưới (letterbox)
+  const barH=H*0.12*(1-Math.abs(t-0.5)*2*0.3);
+  c.save();
+  c.fillStyle='rgba(0,0,0,0.85)';
+  c.fillRect(0,0,W,barH);
+  c.fillRect(0,H-barH,W,barH);
+  // Chữ BOSS WARNING
+  const alpha=1-Math.abs(t-0.5)*2;
+  c.globalAlpha=alpha;
+  c.font='bold '+(40+H*0.04)+'px Impact,sans-serif';
+  c.textAlign='center';
+  c.strokeStyle='#000';c.lineWidth=8;
+  c.strokeText('⚠ BOSS XUẤT HIỆN ⚠',W/2,H*0.18);
+  c.fillStyle='#ff0040';
+  c.shadowColor='#ff0040';
+  c.shadowBlur=30;
+  c.fillText('⚠ BOSS XUẤT HIỆN ⚠',W/2,H*0.18);
+  c.restore();
+}
+
+/* --- Mắt boss phát sáng + tia lửa --- */
+window._bossEyeSparks=[];
+function drawBossEyesGlow(c,boss){
+  if(!boss.isBoss || !boss.isAlive())return;
+  const t=performance.now()/1000;
+  const eyeGlow=0.7+Math.sin(t*4)*0.3;
+  c.save();
+  c.globalAlpha=eyeGlow;
+  c.shadowColor='#ff0040';
+  c.shadowBlur=25;
+  c.fillStyle='#ff0000';
+  // 2 mắt to phát sáng
+  const ex=boss.facing*0.1*30;
+  c.beginPath();
+  c.arc(ex-9*1.5,-88,5,0,Math.PI*2);
+  c.arc(ex+9*1.5,-88,5,0,Math.PI*2);
+  c.fill();
+  // Tia lửa bay ra
+  if(Math.random()<0.15){
+    window._bossEyeSparks.push({
+      x:boss.x+ex-9*1.5,y:boss.y-88,
+      vx:(Math.random()-0.5)*100,
+      vy:-30-Math.random()*50,
+      life:0.6,maxLife:0.6
+    });
+    window._bossEyeSparks.push({
+      x:boss.x+ex+9*1.5,y:boss.y-88,
+      vx:(Math.random()-0.5)*100,
+      vy:-30-Math.random()*50,
+      life:0.6,maxLife:0.6
+    });
+  }
+  c.restore();
+}
+
+function updateBossEyeSparks(dt){
+  window._bossEyeSparks=window._bossEyeSparks.filter(function(s){
+    s.life-=dt;
+    s.x+=s.vx*dt;s.y+=s.vy*dt;s.vy+=80*dt;
+    return s.life>0;
+  });
+}
+function drawBossEyeSparks(c){
+  window._bossEyeSparks.forEach(function(s){
+    const a=s.life/s.maxLife;
+    c.save();
+    c.globalAlpha=a;
+    c.fillStyle='#ff4040';
+    c.shadowColor='#ff0040';
+    c.shadowBlur=12;
+    c.beginPath();
+    c.arc(s.x,s.y,s.life*4,0,Math.PI*2);
+    c.fill();
+    c.restore();
+  });
+}
+
+/* --- Khói đen quanh boss --- */
+window._bossSmoke=[];
+function drawBossSmoke(c,boss){
+  if(!boss.isBoss || !boss.isAlive())return;
+  if(Math.random()<0.3){
+    window._bossSmoke.push({
+      x:boss.x+(Math.random()-0.5)*60,
+      y:boss.y-20-Math.random()*40,
+      life:1.2,maxLife:1.2,
+      size:20+Math.random()*15,
+      vy:-20-Math.random()*30
+    });
+  }
+}
+function updateBossSmoke(dt){
+  window._bossSmoke=window._bossSmoke.filter(function(s){
+    s.life-=dt;
+    s.y+=s.vy*dt;
+    s.size+=15*dt;
+    return s.life>0;
+  });
+}
+function drawBossSmokeLayer(c){
+  window._bossSmoke.forEach(function(s){
+    const a=s.life/s.maxLife*0.4;
+    c.save();
+    c.globalAlpha=a;
+    c.fillStyle='#1a0000';
+    c.beginPath();
+    c.arc(s.x,s.y,s.size,0,Math.PI*2);
+    c.fill();
+    c.restore();
+  });
+}
+
+/* --- Boss gầm gừ: rung người + sọc đỏ --- */
+window._bossRoar = {
+  active:false,
+  t:0
+};
+function startBossRoar(){
+  window._bossRoar.active=true;
+  window._bossRoar.t=0;
+}
+function updateBossRoar(dt){
+  if(window._bossRoar.active){
+    window._bossRoar.t+=dt;
+    if(window._bossRoar.t>1)window._bossRoar.active=false;
+  }
+}
+
+/* --- Ghi đè Fighter.draw cho boss --- */
+if(typeof Fighter!=='undefined'){
+  const _prevDrawBoss = Fighter.prototype.draw;
+  Fighter.prototype.draw=function(ctx){
+    // Rung khi gầm
+    if(this.isBoss && window._bossRoar.active){
+      ctx.save();
+      ctx.translate((Math.random()-0.5)*4,(Math.random()-0.5)*4);
+      _prevDrawBoss.call(this,ctx);
+      ctx.restore();
+    } else {
+      _prevDrawBoss.call(this,ctx);
+    }
+    // Vẽ hiệu ứng boss đè lên
+    if(this.isBoss && this.isAlive()){
+      drawBossSmoke(ctx,this);
+      drawBossEyesGlow(ctx,this);
+      // Nếu đang roar, thêm sọc đỏ
+      if(window._bossRoar.active){
+        ctx.save();
+        const a=1-window._bossRoar.t;
+        ctx.globalAlpha=a*0.6;
+        ctx.strokeStyle='#ff0040';
+        ctx.lineWidth=3;
+        ctx.shadowColor='#ff0040';
+        ctx.shadowBlur=20;
+        for(let i=0;i<6;i++){
+          ctx.beginPath();
+          const ang=Math.random()*Math.PI*2;
+          ctx.moveTo(this.x,this.y-60);
+          ctx.lineTo(this.x+Math.cos(ang)*150,this.y-60+Math.sin(ang)*150);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+  };
+}
+
+/* --- Ghi đè startBattle để khởi động cinematic boss --- */
+if(typeof startBattle!=='undefined'){
+  const _origStartBattle = startBattle;
+  window.startBattle=function(level){
+    _origStartBattle.call(this,level);
+    // Nếu là boss level → cinematic
+    setTimeout(function(){
+      if(game.enemies && game.enemies.length){
+        const boss=game.enemies.find(function(e){return e.isBoss});
+        if(boss){
+          startBossCinematic(boss);
+          setTimeout(function(){ startBossRoar(); }, 1500);
+        }
+      }
+    }, 800);
+  };
+}
+
+/* --- Update + draw --- */
+if(typeof window.updateBattle!=='undefined'){
+  const _prevUBBoss = window.updateBattle;
+  window.updateBattle=function(dt){
+    updateBossCinematic(dt);
+    updateBossEyeSparks(dt);
+    updateBossSmoke(dt);
+    updateBossRoar(dt);
+    _prevUBBoss.call(this,dt);
+  };
+}
+
+if(typeof window.draw!=='undefined'){
+  const _prevDrawBoss2 = window.draw;
+  window.draw=function(){
+    _prevDrawBoss2.call(this);
+    drawBossSmokeLayer(ctx);
+    drawBossEyeSparks(ctx);
+  };
+}
+
+/* --- Ghi đè drawSkillEffects để vẽ cinematic --- */
+if(typeof window.drawSkillEffects!=='undefined'){
+  const _prevDSEBoss = window.drawSkillEffects;
+  window.drawSkillEffects=function(c){
+    _prevDSEBoss.call(this,c);
+    drawBossCinematic(c);
+  };
+}
+
+/* --- Mắt boss sáng liên tục (hiệu ứng phụ) --- */
+if(typeof Fighter!=='undefined'){
+  const _prevTakeDamageBoss = Fighter.prototype.takeDamage;
+  Fighter.prototype.takeDamage=function(d,isCrit){
+    _prevTakeDamageBoss.call(this,d,isCrit);
+    // Boss tức giận khi mất máu
+    if(this.isBoss && this.isAlive()){
+      const hpPct=this.hp/this.maxHp;
+      if(hpPct<0.5 && Math.random()<0.3){
+        startBossRoar();
+      }
+    }
+  };
+}
+
+/* --- Boss skill đặc biệt: khi HP < 30% thì đánh nhanh hơn --- */
+if(typeof Fighter!=='undefined'){
+  const _prevAiUpdateBoss = Fighter.prototype.aiUpdate;
+  Fighter.prototype.aiUpdate=function(dt){
+    // Boss tăng tốc khi máu thấp
+    if(this.isBoss && this.isAlive() && this.hp/this.maxHp<0.3){
+      this.attackCooldown*=0.7;
+    }
+    _prevAiUpdateBoss.call(this,dt);
+  };
+}
+
+console.log('✓ Đợt 1 - Phần 7/8: Boss animation + Cinematic sẵn sàng');
+/* ============================================================
+   Phần 8/8: Hoàn thiện Đợt 1
+   - Sửa xung đột giữa các hàm ghi đè
+   - Thêm particle pooling để không lag
+   - Tối ưu render
+   - Tự kiểm tra & báo cáo
+   ============================================================ */
+
+/* --- GIỚI HẠN SỐ PARTICLE ĐỂ KHÔNG LAG --- */
+window._particleLimit = 300;
+window._deathLimit = 80;
+window._dustLimit = 60;
+window._speedLimit = 40;
+window._runeLimit = 20;
+window._bossSmokeLimit = 30;
+window._bossEyeLimit = 40;
+
+function trimArray(arr,limit){
+  if(arr.length>limit){
+    arr.splice(0,arr.length-limit);
+  }
+}
+
+/* --- Wrap update để trim particle --- */
+if(typeof window.updateBattle!=='undefined'){
+  const _prevUB = window.updateBattle;
+  window.updateBattle=function(dt){
+    _prevUB.call(this,dt);
+    // Trim các mảng particle
+    if(window._deathParticles) trimArray(window._deathParticles, window._deathLimit);
+    if(window._dustParticles) trimArray(window._dustParticles, window._dustLimit);
+    if(window._speedTrails) trimArray(window._speedTrails, window._speedLimit);
+    if(window._runeTexts) trimArray(window._runeTexts, window._runeLimit);
+    if(window._bossSmoke) trimArray(window._bossSmoke, window._bossSmokeLimit);
+    if(window._bossEyeSparks) trimArray(window._bossEyeSparks, window._bossEyeLimit);
+    if(window._swordTrails) trimArray(window._swordTrails, 50);
+    if(typeof skillEffects!=='undefined' && skillEffects.length>window._particleLimit){
+      skillEffects.splice(0,skillEffects.length-window._particleLimit);
+    }
+  };
+}
+
+/* --- FIX: Đảm bảo drawChibiBody gốc không bị gọi 2 lần --- */
+// Bước này đảm bảo chỉ có 1 chuỗi override, không loop
+(function fixChibiOverrides(){
+  // Lưu lại hàm hiện tại
+  const currentBody = window.drawCharBody;
+  const currentChibiBody = window.drawChibiBody;
+  const currentChibiFighter = window.drawChibiFighter;
+
+  // Gắn cờ để tránh override nhiều lần
+  if(!window._chibiOverrideFixed){
+    window._chibiOverrideFixed = true;
+
+    // Đảm bảo drawChibiFighter dùng drawChibiBodyV2
+    window.drawChibiFighter = function(c,x,y,scale,facing,ch,seed){
+      c.save();
+      c.translate(x,y);
+      c.scale(scale*facing,scale);
+      if(typeof drawChibiBodyV2==='function'){
+        drawChibiBodyV2(c,0,0,ch,seed||0);
+      }
+      c.restore();
+    };
+
+    // Đảm bảo drawChibiBody dùng V2
+    window.drawChibiBody = function(c,ox,oy,ch,seed){
+      if(typeof drawChibiBodyV2==='function'){
+        drawChibiBodyV2(c,ox,oy,ch,seed||0);
+      }
+    };
+  }
+})();
+
+/* --- DEBUG: Log trạng thái override --- */
+setTimeout(function(){
+  console.log('═══════════════════════════════════════');
+  console.log('🐉 ĐỢT 1 HOÀN THÀNH — Kiểm tra trạng thái');
+  console.log('═══════════════════════════════════════');
+  console.log('✓ drawChibiHeadV2:', typeof drawChibiHeadV2==='function'?'OK':'THIẾU');
+  console.log('✓ drawChibiBodyV2:', typeof drawChibiBodyV2==='function'?'OK':'THIẾU');
+  console.log('✓ drawChibiEyeV2:', typeof drawChibiEyeV2==='function'?'OK':'THIẾU');
+  console.log('✓ drawChibiArmV2:', typeof drawChibiArmV2==='function'?'OK':'THIẾU');
+  console.log('✓ drawChibiLegV2:', typeof drawChibiLegV2==='function'?'OK':'THIẾU');
+  console.log('✓ drawCapeV2:', typeof drawCapeV2==='function'?'OK':'THIẾU');
+  console.log('✓ drawRunCycleLegs:', typeof drawRunCycleLegs==='function'?'OK':'THIẾU');
+  console.log('✓ drawSwordTrails:', typeof drawSwordTrails==='function'?'OK':'THIẾU');
+  console.log('✓ drawComboHits:', typeof drawComboHits==='function'?'OK':'THIẾU');
+  console.log('✓ drawKillEffects:', typeof drawKillEffects==='function'?'OK':'THIẾU');
+  console.log('✓ drawDeathParticles:', typeof drawDeathParticles==='function'?'OK':'THIẾU');
+  console.log('✓ drawDustParticles:', typeof drawDustParticles==='function'?'OK':'THIẾU');
+  console.log('✓ drawSpeedTrails:', typeof drawSpeedTrails==='function'?'OK':'THIẾU');
+  console.log('✓ drawRuneTexts:', typeof drawRuneTexts==='function'?'OK':'THIẾU');
+  console.log('✓ drawBossCinematic:', typeof drawBossCinematic==='function'?'OK':'THIẾU');
+  console.log('✓ drawBossSmoke:', typeof drawBossSmoke==='function'?'OK':'THIẾU');
+  console.log('✓ drawBossEyesGlow:', typeof drawBossEyesGlow==='function'?'OK':'THIẾU');
+  console.log('═══════════════════════════════════════');
+  console.log('🎉 ĐỢT 1 đã sẵn sàng! Vào game để test.');
+  console.log('═══════════════════════════════════════');
+},1500);
+
+/* --- CHỐNG LAG: Giảm particle khi máy yếu --- */
+// Kiểm tra FPS
+let _fpsFrames=0;
+let _fpsLast=performance.now();
+let _fps=60;
+window._lowPerformanceMode=false;
+
+setInterval(function(){
+  const now=performance.now();
+  const delta=now-_fpsLast;
+  if(delta>1000){
+    _fps=Math.round(_fpsFrames*1000/delta);
+    _fpsFrames=0;
+    _fpsLast=now;
+    // Nếu FPS < 40 → bật chế độ tiết kiệm
+    if(_fps<40 && !window._lowPerformanceMode){
+      window._lowPerformanceMode=true;
+      window._deathLimit=30;
+      window._dustLimit=20;
+      window._speedLimit=15;
+      window._particleLimit=150;
+      console.log('⚠ FPS thấp ('+_fps+') → Bật chế độ tiết kiệm particle');
+    } else if(_fps>55 && window._lowPerformanceMode){
+      window._lowPerformanceMode=false;
+      window._deathLimit=80;
+      window._dustLimit=60;
+      window._speedLimit=40;
+      window._particleLimit=300;
+      console.log('✓ FPS ổn định ('+_fps+') → Tắt chế độ tiết kiệm');
+    }
+  }
+  _fpsFrames++;
+},1000);
+
+/* --- KEYBOARD SHORTCUT DEBUG (chỉ khi test) --- */
+document.addEventListener('keydown',function(e){
+  // F1: In trạng thái
+  if(e.key==='F1'){
+    console.log('=== DEBUG INFO ===');
+    console.log('Screen:',state.screen);
+    console.log('Game active:',game.active);
+    console.log('Players:',game.players?game.players.length:0);
+    console.log('Enemies:',game.enemies?game.enemies.length:0);
+    console.log('Skill effects:',typeof skillEffects!=='undefined'?skillEffects.length:0);
+    console.log('FPS:',_fps);
+  }
+  // F2: Bật/tắt low perf
+  if(e.key==='F2'){
+    window._lowPerformanceMode=!window._lowPerformanceMode;
+    console.log('Low perf mode:',window._lowPerformanceMode);
+  }
+});
+
+/* --- Ghi chú cho người dùng --- */
+console.log('');
+console.log('%c╔══════════════════════════════════════════╗','color:#ffd700;font-weight:bold');
+console.log('%c║  🎉 ĐỢT 1 HOÀN THÀNH — Nhân vật + Anim  ║','color:#ffd700;font-weight:bold');
+console.log('%c╚══════════════════════════════════════════╝','color:#ffd700;font-weight:bold');
+console.log('');
+console.log('%cNhững gì đã thêm:','color:#4ad8ff;font-weight:bold');
+console.log('  ✓ Đầu chibi: mắt 3 lớp, tóc nhiều lớp, biểu cảm');
+console.log('  ✓ Thân: áo choàng bay, chân có khớp, tay co duỗi');
+console.log('  ✓ Animation: idle thở, chạy 8 frame, đánh co duỗi');
+console.log('  ✓ Vệt kiếm bay theo quỹ đạo khi đánh');
+console.log('  ✓ Combo hiện chữ ⚔⚔ bay lên');
+console.log('  ✓ Chết tan biến thành hạt sáng');
+console.log('  ✓ Khói bụi khi chạy/nhảy/dash');
+console.log('  ✓ Cast skill: pose giơ tay, vòng sáng, chữ Hán tự');
+console.log('  ✓ Aura đỏ khi HP thấp, boss có aura đặc biệt');
+console.log('  ✓ Cinematic khi boss xuất hiện');
+console.log('  ✓ Boss mắt phát sáng + khói đen + gầm gừ');
+console.log('');
+console.log('%cGõ F1 để xem debug info. Gõ F2 để bật/tắt chế độ tiết kiệm.','color:#a8b8e8;font-style:italic');
+console.log('');
+console.log('%cĐợt tiếp theo: Gõ "tiếp" để làm ĐỢT 2 — Hiệu ứng chiến đấu (12 phần)','color:#ff8c42;font-weight:bold');
+console.log('');
 </script>
 </body>
 </html>
